@@ -193,6 +193,7 @@ class SSD(object):
         #   图像绘制
         #---------------------------------------------------------#
         for i, c in list(enumerate(top_label)):
+            print(len(top_label))
             predicted_class = self.class_names[int(c)]
             box             = top_boxes[i]
             score           = top_conf[i]
@@ -220,7 +221,7 @@ class SSD(object):
             draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.colors[c])
             draw.text(text_origin, str(label,'UTF-8'), fill=(0, 0, 0), font=font)
             del draw
-
+            image.show()
         return image
 
     def get_FPS(self, image, test_interval):
