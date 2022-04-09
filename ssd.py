@@ -221,7 +221,6 @@ class SSD(object):
             draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.colors[c])
             draw.text(text_origin, str(label,'UTF-8'), fill=(0, 0, 0), font=font)
             del draw
-            image.show()
         return image
 
     def get_FPS(self, image, test_interval):
