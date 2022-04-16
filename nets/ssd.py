@@ -82,15 +82,24 @@ class SSD300(nn.Module):
             
             loc_layers      = []
             conf_layers     = []
-
-            loc_layers      += [nn.Conv2d(128, 4 * 4, kernel_size = 3, padding = 1),
-                                nn.Conv2d(256, 4 * 4, kernel_size = 3, padding = 1),
-                                nn.Conv2d(512, 4 * 4, kernel_size = 3, padding = 1),
-                                nn.Conv2d(1024, 4 * 4, kernel_size = 3, padding = 1)]
-            conf_layers     += [nn.Conv2d(128, 4 * num_classes, kernel_size = 3, padding = 1),
-                                nn.Conv2d(256, 4 * num_classes, kernel_size = 3, padding = 1),
-                                nn.Conv2d(512, 4 * num_classes, kernel_size = 3, padding = 1),
-                                nn.Conv2d(1024, 4 * num_classes, kernel_size = 3, padding = 1)]
+            backbone_source = [21, -2]
+            #---------------------------------------------------#
+            #   在add_vgg获得的特征层里
+            #   第21层和-2层可以用来进行回归预测和分类预测。
+            #   分别是conv4-3(38,38,512)和conv7(19,19,1024)的输出
+            #---------------------------------------------------#
+            for k, v in enumerate(backbone_source):
+                loc_layers  += [nn.Conv2d(self.vgg[v].out_channels, mbox[k] * 4, kernel_size = 3, padding = 1)]
+                conf_layers += [nn.Conv2d(self.vgg[v].out_channels, mbox[k] * num_classes, kernel_size = 3, padding = 1)]
+            #-------------------------------------------------------------#
+            #   在add_extras获得的特征层里
+            #   第1层、第3层、第5层、第7层可以用来进行回归预测和分类预测。
+            #   shape分别为(10,10,512), (5,5,256), (3,3,256), (1,1,256)
+            #-------------------------------------------------------------#  
+            for k, v in enumerate(self.extras[1::2], 2):
+                loc_layers  += [nn.Conv2d(v.out_channels, mbox[k] * 4, kernel_size = 3, padding = 1)]
+                conf_layers += [nn.Conv2d(v.out_channels, mbox[k] * num_classes, kernel_size = 3, padding = 1)]
+        
         self.loc            = nn.ModuleList(loc_layers)
         self.conf           = nn.ModuleList(conf_layers)
         self.backbone_name  = backbone_name
@@ -143,16 +152,10 @@ class SSD300(nn.Module):
         u_right_1   = self.decoder1(uleft[1],u_right_2)
         u_right_0   = self.decoder0(uleft[0],u_right_1)
         sources = [u_right_0,u_right_1,u_right_2,u_right_3,u_right_4,u_right_5]
-        for iter in sources:
-            print(iter.shape)
-
 
         #-------------------------------------------------------------#
         #   为获得的6个有效特征层添加回归预测和分类预测
-        #-------------------------------------------------------------# 
-        print(len(sources))
-        print(len(self.loc))
-        print(len(self.conf))    
+        #-------------------------------------------------------------#   
         for (x, l, c) in zip(sources, self.loc, self.conf):
             loc.append(l(x).permute(0, 2, 3, 1).contiguous())
             conf.append(c(x).permute(0, 2, 3, 1).contiguous())
