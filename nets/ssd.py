@@ -149,9 +149,12 @@ class SSD300(nn.Module):
 
         #-------------------------------------------------------------#
         #   为获得的6个有效特征层添加回归预测和分类预测
-        #-------------------------------------------------------------#     
+        #-------------------------------------------------------------# 
+        print(len(sources))
+        print(len(self.loc))
+        print(len(self.conf))    
         for (x, l, c) in zip(sources, self.loc, self.conf):
-            
+            print(x)
             loc.append(l(x).permute(0, 2, 3, 1).contiguous())
             conf.append(c(x).permute(0, 2, 3, 1).contiguous())
 
