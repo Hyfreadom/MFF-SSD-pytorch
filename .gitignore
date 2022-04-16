@@ -140,3 +140,4 @@ model_data/ep32-4.8.pth
 img/car.jpg
 img/smallcar.jpg
 *.pth
+*.jpg
