@@ -2,6 +2,7 @@ import colorsys
 import os
 import time
 import warnings
+from filter import dft_lowpass
 
 import numpy as np
 import torch
@@ -32,7 +33,7 @@ class SSD(object):
         #   验证集损失较低不代表mAP较高，仅代表该权值在验证集上泛化性能较好。
         #   如果出现shape不匹配，同时要注意训练时的model_path和classes_path参数的修改
         #--------------------------------------------------------------------------#
-        "model_path"        :  "D:\\Github\\ssd-pytorch\\model_data\\umff-ssd.pth",
+        "model_path"        :  "D:\\Github\\ssd-pytorch\\model_data\\umff.pth",
         "classes_path"      : 'model_data/voc_classes.txt',
         #---------------------------------------------------------------------#
         #   用于预测的图像大小，和train时使用同一个即可
@@ -197,20 +198,21 @@ class SSD(object):
             predicted_class = self.class_names[int(c)]
             box             = top_boxes[i]
             score           = top_conf[i]
-
             top, left, bottom, right = box
-
             top     = max(0, np.floor(top).astype('int32'))
             left    = max(0, np.floor(left).astype('int32'))
             bottom  = min(image.size[1], np.floor(bottom).astype('int32'))
             right   = min(image.size[0], np.floor(right).astype('int32'))
+
+            #截取检测到的部分,并转为numpy.ndarray类型,
+            image_detect = np.array(image)[top:bottom,left:right]
 
             label = '{} {:.2f}'.format(predicted_class, score)
             draw = ImageDraw.Draw(image)
             label_size = draw.textsize(label, font)
             label = label.encode('utf-8')
             print(label, top, left, bottom, right)
-            
+                 
             if top - label_size[1] >= 0:
                 text_origin = np.array([left, top - label_size[1]])
             else:
