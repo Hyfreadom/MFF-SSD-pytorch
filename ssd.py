@@ -2,6 +2,7 @@ import colorsys
 import os
 import time
 import warnings
+import cv2
 from filter import dft_lowpass
 
 import numpy as np
