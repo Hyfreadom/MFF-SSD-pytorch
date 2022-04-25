@@ -18,7 +18,7 @@ annotation_mode     = 0
 #   那么就是因为classes没有设定正确
 #   仅在annotation_mode为0和2的时候有效
 #-------------------------------------------------------------------#
-classes_path        = "E:/download/VOCdevikit/Face_classes.txt"
+classes_path        = "E:/download/WildFace/Face_classes.txt"
 #--------------------------------------------------------------------------------------------------------------------------------#
 #   trainval_percent用于指定(训练集+验证集)与测试集的比例，默认情况下 (训练集+验证集):测试集 = 9:1
 #   train_percent用于指定(训练集+验证集)中训练集与验证集的比例，默认情况下 训练集:验证集 = 9:1
@@ -30,13 +30,13 @@ train_percent       = 0.9
 #   指向VOC数据集所在的文件夹
 #   默认指向根目录下的VOC数据集
 #-------------------------------------------------------#
-VOCdevkit_path  = "E:/download/VOCdevikit"
+WildFace_path  = "E:/download/WildFace"
 
-VOCdevkit_sets  = [('2007', 'train'), ('2007', 'val')]
+VOCdevkit_sets  = [('WildFace', 'train'), ('WildFace', 'val')]
 classes, _      = get_classes(classes_path)
 
-def convert_annotation(year, image_id, list_file):
-    in_file = open(os.path.join(VOCdevkit_path, 'VOC%s/Annotations/%s.xml'%(year, image_id)), encoding='ISO-8859-1')
+def convert_annotation(name, image_id, list_file):
+    in_file = open(os.path.join(WildFace_path, 'VOC_%s/Annotations/%s.xml'%(name, image_id)), encoding='ISO-8859-1')
     tree=ET.parse(in_file)
     root = tree.getroot()
 
@@ -56,8 +56,8 @@ if __name__ == "__main__":
     random.seed(0)
     if annotation_mode == 0 or annotation_mode == 1:
         print("Generate txt in ImageSets.")
-        xmlfilepath     = os.path.join(VOCdevkit_path, 'VOC2007/Annotations')
-        saveBasePath    = os.path.join(VOCdevkit_path, 'VOC2007/ImageSets/Main')
+        xmlfilepath     = os.path.join(WildFace_path, 'VOC_WildFace/Annotations')
+        saveBasePath    = os.path.join(WildFace_path, 'VOC_WildFace/ImageSets/Main')
         temp_xml        = os.listdir(xmlfilepath)
         total_xml       = []
         for xml in temp_xml:
@@ -96,14 +96,14 @@ if __name__ == "__main__":
         print("Generate txt in ImageSets done.")
 
     if annotation_mode == 0 or annotation_mode == 2:
-        print("Generate 2007_train.txt and 2007_val.txt for train.")
-        for year, image_set in VOCdevkit_sets:
-            image_ids = open(os.path.join(VOCdevkit_path, 'VOC%s/ImageSets/Main/%s.txt'%(year, image_set)), encoding='utf-8').read().strip().split()
-            list_file = open('%s_%s.txt'%(year, image_set), 'w', encoding='utf-8')
+        print("Generate WildFace_train.txt and WildFace_val.txt for train.")
+        for name, image_set in VOCdevkit_sets:
+            image_ids = open(os.path.join(WildFace_path, 'VOC_%s/ImageSets/Main/%s.txt'%(name, image_set)), encoding='utf-8').read().strip().split()
+            list_file = open('%s_%s.txt'%(name, image_set), 'w', encoding='utf-8')
             for image_id in image_ids:
-                list_file.write('%s/VOC%s/JPEGImages/%s.jpg'%(os.path.abspath(VOCdevkit_path), year, image_id))
+                list_file.write('%s/VOC_%s/JPEGImages/%s.jpg'%(os.path.abspath(WildFace_path), name, image_id))
 
-                convert_annotation(year, image_id, list_file)
+                convert_annotation(name, image_id, list_file)
                 list_file.write('\n')
             list_file.close()
-        print("Generate 2007_train.txt and 2007_val.txt for train done.")
+        print("Generate WildFace_train.txt and WildFace_val.txt for train done.")
