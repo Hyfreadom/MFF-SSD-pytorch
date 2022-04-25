@@ -18,7 +18,7 @@ annotation_mode     = 0
 #   那么就是因为classes没有设定正确
 #   仅在annotation_mode为0和2的时候有效
 #-------------------------------------------------------------------#
-classes_path        = 'model_data/voc_classes.txt'
+classes_path        = "E:/download/VOCdevikit/Face_classes.txt"
 #--------------------------------------------------------------------------------------------------------------------------------#
 #   trainval_percent用于指定(训练集+验证集)与测试集的比例，默认情况下 (训练集+验证集):测试集 = 9:1
 #   train_percent用于指定(训练集+验证集)中训练集与验证集的比例，默认情况下 训练集:验证集 = 9:1
@@ -30,13 +30,13 @@ train_percent       = 0.9
 #   指向VOC数据集所在的文件夹
 #   默认指向根目录下的VOC数据集
 #-------------------------------------------------------#
-VOCdevkit_path  = "E:\\download\\WildFace"
+VOCdevkit_path  = "E:/download/VOCdevikit"
 
 VOCdevkit_sets  = [('2007', 'train'), ('2007', 'val')]
 classes, _      = get_classes(classes_path)
 
 def convert_annotation(year, image_id, list_file):
-    in_file = open(os.path.join(VOCdevkit_path, 'VOC%s/Annotations/%s.xml'%(year, image_id)), encoding='utf-8')
+    in_file = open(os.path.join(VOCdevkit_path, 'VOC%s/Annotations/%s.xml'%(year, image_id)), encoding='ISO-8859-1')
     tree=ET.parse(in_file)
     root = tree.getroot()
 
@@ -56,8 +56,8 @@ if __name__ == "__main__":
     random.seed(0)
     if annotation_mode == 0 or annotation_mode == 1:
         print("Generate txt in ImageSets.")
-        xmlfilepath     = os.path.join(VOCdevkit_path, '\\Annotations')
-        saveBasePath    = os.path.join(VOCdevkit_path, '\\ImageSets')
+        xmlfilepath     = os.path.join(VOCdevkit_path, 'VOC2007/Annotations')
+        saveBasePath    = os.path.join(VOCdevkit_path, 'VOC2007/ImageSets/Main')
         temp_xml        = os.listdir(xmlfilepath)
         total_xml       = []
         for xml in temp_xml:

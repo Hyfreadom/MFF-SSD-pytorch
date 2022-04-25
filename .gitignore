@@ -141,3 +141,4 @@ img/car.jpg
 img/smallcar.jpg
 *.pth
 *.jpg
+*.txt
