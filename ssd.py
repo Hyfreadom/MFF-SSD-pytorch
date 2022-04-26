@@ -34,8 +34,8 @@ class SSD(object):
         #   验证集损失较低不代表mAP较高，仅代表该权值在验证集上泛化性能较好。
         #   如果出现shape不匹配，同时要注意训练时的model_path和classes_path参数的修改
         #--------------------------------------------------------------------------#
-        "model_path"        : "D:/Github/ssd-pytorch/logs/umff-ssd-wildface.pth",
-        "classes_path"      : "E:/download/VOCdevikit/Face_classes.txt",
+        "model_path"        : "D:/OneDrive/python_work/SSD/训练wildface/umff-ssd-wildface.pth",
+        "classes_path"      : "E:/download/WildFace/Face_classes.txt",
         #---------------------------------------------------------------------#
         #   用于预测的图像大小，和train时使用同一个即可
         #---------------------------------------------------------------------#
