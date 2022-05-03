@@ -50,7 +50,6 @@ if __name__ == "__main__":
     #-------------------------------------------------------------------------#
     dir_origin_path = "img/"
     dir_save_path   = "img_out/"
-
     if mode == "predict":
         '''
         1、该代码无法直接进行批量预测，如果想要批量预测，可以利用os.listdir()遍历文件夹，利用Image.open打开图片文件进行预测。
@@ -70,7 +69,7 @@ if __name__ == "__main__":
                 print('Open Error! Try again!')
                 continue
             else:
-                r_image = ssd.detect_image(image, crop = crop)
+                r_image = ssd.detect_image(image, crop = True)
                 r_image.show()
 
     elif mode == "video":
