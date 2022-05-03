@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from nets.ssd import SSD300
 from utils.anchors import get_anchors
-from utils.utils import cvtColor, get_classes, resize_image, preprocess_input
+from utils.utils import cvtColor, get_classes, resize_image, preprocess_input, letterbox_image
 from utils.utils_bbox import BBoxUtility
 
 warnings.filterwarnings("ignore")
@@ -62,11 +62,15 @@ class SSD(object):
         #   在多次测试后，发现关闭letterbox_image直接resize的效果更好
         #---------------------------------------------------------------------#
         "letterbox_image"   : False,
+        #----------------------------------------------------------------------#
+        #   facenet所使用到的输入图片大小
+        #----------------------------------------------------------------------#
+        "facenet_input_shape"   : [160, 160, 3],
         #-------------------------------#
         #   是否使用Cuda
         #   没有GPU可以设置成False
         #-------------------------------#
-        "cuda"              : True,
+        "cuda"              : True
     }
 
     @classmethod
@@ -189,8 +193,27 @@ class SSD(object):
                 if not os.path.exists(dir_save_path):
                     os.makedirs(dir_save_path)
                 crop_image = image.crop([left, top, right, bottom])
-                crop_image.save(os.path.join(dir_save_path, "crop_" + str(i) + ".png"), quality=95, subsampling=0)
-                print("save crop_" + str(i) + ".png to " + dir_save_path)
+                #crop_image.save(os.path.join(dir_save_path, "crop_" + str(i) + ".png"), quality=95, subsampling=0)
+                #print("save crop_" + str(i) + ".png to " + dir_save_path)
+
+
+
+                #---------------------------------------------------------#
+                #   对截取的人脸进行编码
+                #---------------------------------------------------------#
+                crop_img = np.array(letterbox_image(np.uint8(crop_image),(self.facenet_input_shape[1],self.facenet_input_shape[0])))/255
+                crop_img = np.expand_dims(crop_img.transpose(2, 0, 1),0)
+                with torch.no_grad():
+                    crop_img = torch.from_numpy(crop_img).type(torch.FloatTensor)
+                    if self.cuda:
+                        crop_img = crop_img.cuda()                
+                #-----------------------------------------------#
+                #   利用facenet_model计算长度为128特征向量
+                #-----------------------------------------------#
+                    face_encoding = self.facenet(crop_img)[0].cpu().numpy()
+                    face_encodings.append(face_encoding)
+
+
         #---------------------------------------------------------#
         #   图像绘制
         #---------------------------------------------------------#
@@ -205,8 +228,6 @@ class SSD(object):
             bottom  = min(image.size[1], np.floor(bottom).astype('int32'))
             right   = min(image.size[0], np.floor(right).astype('int32'))
 
-            #截取检测到的部分,并转为numpy.ndarray类型,
-            image_detect = np.array(image)[top:bottom,left:right]
 
             label = '{} {:.2f}'.format(predicted_class, score)
             draw = ImageDraw.Draw(image)
