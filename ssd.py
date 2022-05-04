@@ -2,85 +2,64 @@ import colorsys
 import os
 import time
 import warnings
-import cv2
 import torch.nn as nn
 from nets.facenet import Facenet
-#from filter import dft_lowpass
-
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 from PIL import Image, ImageDraw, ImageFont
-
 from nets.ssd import SSD300
 from utils.anchors import get_anchors
 from utils.utils import cvtColor, get_classes, resize_image, preprocess_input, letterbox_image,compare_faces
 from utils.utils_bbox import BBoxUtility
-
 warnings.filterwarnings("ignore")
-
-#--------------------------------------------#
-#   使用自己训练好的模型预测需要修改3个参数
-#   model_path、backbone和classes_path都需要修改！
-#   如果出现shape不匹配
-#   一定要注意训练时的config里面的num_classes、
-#   model_path和classes_path参数的修改
-#--------------------------------------------#
-
-
 class SSD(object):
     _defaults = {
-        #--------------------------------------------------------------------------#
-        #   使用自己训练好的模型进行预测一定要修改model_path和classes_path！
-        #   model_path指向logs文件夹下的权值文件，classes_path指向model_data下的txt
-        #
-        #   训练好后logs文件夹下存在多个权值文件，选择验证集损失较低的即可。
-        #   验证集损失较低不代表mAP较高，仅代表该权值在验证集上泛化性能较好。
-        #   如果出现shape不匹配，同时要注意训练时的model_path和classes_path参数的修改
-        #--------------------------------------------------------------------------#
+
+        #************************************************************************
+        #*****************************SSD参数************************************
+        #************************************************************************     
+        #----------------------------------------------------------------------#
+        #   U-MFF-SSD网络的权值,主干网络名称以及输入尺寸
+        #----------------------------------------------------------------------#
         "model_path"        : "D:/OneDrive/python_work/SSD/训练wildface/wildface.pth",
         "classes_path"      : "E:/download/WildFace/Face_classes.txt",
-        #---------------------------------------------------------------------#
-        #   用于预测的图像大小，和train时使用同一个即可
-        #---------------------------------------------------------------------#
         "input_shape"       : [300, 300],
-        #-------------------------------#
-        #   主干网络的选择
-        #   vgg或者mobilenetv2
-        #-------------------------------#
         "backbone"          : "vgg",
-        #---------------------------------------------------------------------#
-        #   只有得分大于置信度的预测框会被保留下来
-        #---------------------------------------------------------------------#
+        #----------------------------------------------------------------------#        
+        #   目标检测置信度门限 及 非极大抑制所用到的参数
+        #----------------------------------------------------------------------#
         "confidence"        : 0.5,
-        #---------------------------------------------------------------------#
-        #   非极大抑制所用到的nms_iou大小
-        #---------------------------------------------------------------------#
         "nms_iou"           : 0.45,
-        #---------------------------------------------------------------------#
-        #   用于指定先验框的大小
-        #---------------------------------------------------------------------#
+        #----------------------------------------------------------------------#   
+        #   先验框大小,和特征图尺寸有关,在此处进行改动的话还需要在其他地方更改
+        #----------------------------------------------------------------------#
         'anchors_size'      : [30, 60, 111, 162, 213, 264, 315],
-
-        #---------------------------------------------------------------------#
-        #   该变量用于控制是否使用letterbox_image对输入图像进行不失真的resize，
-        #   在多次测试后，发现关闭letterbox_image直接resize的效果更好
-        #---------------------------------------------------------------------#
+        #----------------------------------------------------------------------#
+        #   SSD网络是否进行不失真的resize
+        #----------------------------------------------------------------------#
         "letterbox_image"   : False,
 
-        #----------------------------------------------------------------------#
-        #   facenet所使用到的输入图片大小
-        #----------------------------------------------------------------------#
-        "facenet_input_shape"   : [160, 160, 3],
 
+
+        #***********************************************************************
+        #********************************facenet参数*****************************
+        #***********************************************************************
         #----------------------------------------------------------------------#
-        #   facenet模型的backbone
-        #----------------------------------------------------------------------#
+        #   facenet网络的权值,主干网络名称以及输入尺寸
+        "facenet_input_shape"   : [160, 160, 3],
         "facenet_backbone"      : "mobilenet",
+        "facenet_model_path"    : "model_data/facenet_mobilenet.pth",
         #----------------------------------------------------------------------#
         #   facenet所使用的人脸距离门限
         #----------------------------------------------------------------------#
-        "facenet_threhold"      : 0.9,
+        "facenet_threhold"      : 0.5,
+        #----------------------------------------------------------------------#
+        #   Facenet网络是否进行不失真的resize
+        #----------------------------------------------------------------------#
+        "letterbox_image"       : True,
+
+
         #-------------------------------#
         #   是否使用Cuda
         #   没有GPU可以设置成False
@@ -95,8 +74,9 @@ class SSD(object):
         else:
             return "Unrecognized attribute name '" + n + "'"
 
+
     #---------------------------------------------------#
-    #   初始化ssd
+    #   初始化ssd和facenet
     #---------------------------------------------------#
     def __init__(self, encoding =0,**kwargs):
         self.__dict__.update(self._defaults)
@@ -117,9 +97,11 @@ class SSD(object):
         hsv_tuples = [(x / self.num_classes, 1., 1.) for x in range(self.num_classes)]
         self.colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
         self.colors = list(map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)), self.colors))
-
         self.bbox_util = BBoxUtility(self.num_classes)
-        self.generate()
+
+        #---------------------------------------------------#
+        #   加载source人脸特征
+        #---------------------------------------------------#       
         try:
             self.known_face_encodings = np.load("model_data/{backbone}_face_encoding.npy".format(backbone=self.facenet_backbone))
             self.known_face_names     = np.load("model_data/{backbone}_names.npy".format(backbone=self.facenet_backbone))
@@ -127,6 +109,8 @@ class SSD(object):
             if not encoding:
                 print("载入已有人脸特征失败，请检查model_data下面是否生成了相关的人脸特征文件。")
             pass
+
+        self.generate()
 
     #---------------------------------------------------#
     #   载入模型
@@ -142,18 +126,35 @@ class SSD(object):
         print('{} model, anchors, and classes loaded.'.format(self.model_path))
 
         #-------------------------------#
-        #   载入facenet模型与权值
+        #   载入Facenet模型和权值
+        #-------------------------------#   
+        
+        self.facenet    = Facenet(backbone=self.facenet_backbone, mode="predict").eval()    
+        state_dict = torch.load(self.facenet_model_path)
+        self.facenet.load_state_dict(state_dict, strict=False)
+
+
         #-------------------------------#
-        self.facenet    = Facenet(backbone=self.facenet_backbone, mode="predict").eval()
-        self.facenet    = nn.DataParallel(self.facenet)
-        self.facenet    = self.facenet.cuda()
-
-
+        #   模型加载到cuda上
+        #-------------------------------#     
         if self.cuda:
             self.net = torch.nn.DataParallel(self.net)
             cudnn.benchmark = True
             self.net = self.net.cuda()
 
+            self.facenet = nn.DataParallel(self.facenet)
+            self.facenet = self.facenet.cuda()     
+        print('Finished!')
+
+
+
+
+
+
+
+    #---------------------------------------------------#
+    #   已知目标编码
+    #---------------------------------------------------#
     def encode_image(self,image,names):
         #---------------------------------------------------#
         #   计算输入图片的高和宽
@@ -215,7 +216,6 @@ class SSD(object):
             if not os.path.exists(dir_save_path):
                 os.makedirs(dir_save_path)
             crop_image = image.crop([left, top, right, bottom])
-            crop_image.show()
             #---------------------------------------------------------#
             #   对截取的人脸进行resize
             #---------------------------------------------------------#
@@ -240,9 +240,8 @@ class SSD(object):
         np.save("model_data/{backbone}_names.npy".format(backbone=self.facenet_backbone),names)
 
 
-
     #---------------------------------------------------#
-    #   检测人脸
+    #   未知目标检测
     #---------------------------------------------------#
     def detect_image(self, image, crop):
         face_encodings = []
@@ -287,6 +286,7 @@ class SSD(object):
             if len(results[0]) <= 0:
                 return image
 
+
             top_label   = np.array(results[0][:, 4], dtype = 'int32')   #用类别对应的序号标记类别
             top_conf    = results[0][:, 5]  #result 中的第五个位置的数字
             top_boxes   = results[0][:, :4] #result 中的0-4位置的数字
@@ -315,7 +315,6 @@ class SSD(object):
                 if not os.path.exists(dir_save_path):
                     os.makedirs(dir_save_path)
                 crop_image = image.crop([left, top, right, bottom])
-                crop_image.show()
                 '''
                 crop_image.save(os.path.join(dir_save_path, "crop_" + str(i) + ".png"), quality=95, subsampling=0)
                 print("save crop_" + str(i) + ".png to " + dir_save_path)'''
@@ -344,6 +343,8 @@ class SSD(object):
             #   取出一张脸并与数据库中所有的人脸进行对比，计算得分
             #-----------------------------------------------------#       
             matches, face_distances = compare_faces(self.known_face_encodings, face_encoding, tolerance = self.facenet_threhold)
+            print(matches)
+            print(face_distances)
             name = "Unknown"
             #-----------------------------------------------------#
             #   取出这个最近人脸的评分

@@ -147,3 +147,5 @@ img/smallcar.jpg
 2007_val.txt
 .DS_Store
 *.png
+*.npy
+*.npy

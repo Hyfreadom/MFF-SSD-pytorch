@@ -17,8 +17,8 @@ print(names)
 for name in names:
     image_path ='source_img/'+name+'.png'
     image = Image.open(image_path)
-    print(name)
-    print(ssd_face.encode_image(image,names))
+    #print(name)
+    #print(ssd_face.encode_image(image,names))
     face_encodings.append(ssd_face.encode_image(image,names))
 np.save("model_data/{backbone}_face_encoding.npy".format(backbone='mobilenet'),face_encodings)
 np.save("model_data/{backbone}_names.npy".format(backbone='mobilenet'),names)

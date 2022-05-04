@@ -60,7 +60,6 @@ def face_distance(face_encodings, face_to_compare):
 #   比较人脸
 #---------------------------------#
 def compare_faces(known_face_encodings, face_encoding_to_check, tolerance):
-    print(face_encoding_to_check)
     dis = face_distance(known_face_encodings, face_encoding_to_check) 
     return list(dis <= tolerance), dis
 
