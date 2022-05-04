@@ -215,6 +215,7 @@ class SSD(object):
             if not os.path.exists(dir_save_path):
                 os.makedirs(dir_save_path)
             crop_image = image.crop([left, top, right, bottom])
+            crop_image.show()
             #---------------------------------------------------------#
             #   对截取的人脸进行resize
             #---------------------------------------------------------#
@@ -314,6 +315,7 @@ class SSD(object):
                 if not os.path.exists(dir_save_path):
                     os.makedirs(dir_save_path)
                 crop_image = image.crop([left, top, right, bottom])
+                crop_image.show()
                 '''
                 crop_image.save(os.path.join(dir_save_path, "crop_" + str(i) + ".png"), quality=95, subsampling=0)
                 print("save crop_" + str(i) + ".png to " + dir_save_path)'''
