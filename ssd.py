@@ -3,6 +3,8 @@ import os
 import time
 import warnings
 import cv2
+import torch.nn as nn
+from nets.facenet import Facenet
 #from filter import dft_lowpass
 
 import numpy as np
@@ -24,6 +26,29 @@ warnings.filterwarnings("ignore")
 #   一定要注意训练时的config里面的num_classes、
 #   model_path和classes_path参数的修改
 #--------------------------------------------#
+
+#---------------------------------------------------#
+#   对参照人物图像进行编码
+#---------------------------------------------------#
+def encode_face_dataset(image_root_paths):
+    names = []
+    pic_names = os.listdir(image_root_paths)
+    for pic_name in pic_names:
+        names.append(pic_name[:-4])
+    print(names)
+    face_encodings = []
+    #---------------------------------------------------#
+    #   打开人脸图片
+    #---------------------------------------------------#
+    #image       = np.array(Image.open(path), np.float32)
+    #---------------------------------------------------#
+    #   对输入图像进行一个备份
+    #---------------------------------------------------#
+    #old_image   = image.copy()
+    #---------------------------------------------------#
+    #   计算输入图片的高和宽            #  
+    #---------------------------------------------------#
+    #im_height, im_width, _ = np.shape(image)
 class SSD(object):
     _defaults = {
         #--------------------------------------------------------------------------#
@@ -57,15 +82,23 @@ class SSD(object):
         #   用于指定先验框的大小
         #---------------------------------------------------------------------#
         'anchors_size'      : [30, 60, 111, 162, 213, 264, 315],
+
         #---------------------------------------------------------------------#
         #   该变量用于控制是否使用letterbox_image对输入图像进行不失真的resize，
         #   在多次测试后，发现关闭letterbox_image直接resize的效果更好
         #---------------------------------------------------------------------#
         "letterbox_image"   : False,
+
         #----------------------------------------------------------------------#
         #   facenet所使用到的输入图片大小
         #----------------------------------------------------------------------#
         "facenet_input_shape"   : [160, 160, 3],
+
+        #----------------------------------------------------------------------#
+        #   facenet模型的backbone
+        #----------------------------------------------------------------------#
+        "facenet_backbone"      : "mobilenet",
+
         #-------------------------------#
         #   是否使用Cuda
         #   没有GPU可以设置成False
@@ -111,7 +144,7 @@ class SSD(object):
     #---------------------------------------------------#
     def generate(self):
         #-------------------------------#
-        #   载入模型与权值
+        #   载入SSD模型与权值
         #-------------------------------#
         self.net    = SSD300(self.num_classes, self.backbone)
         device      = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -119,15 +152,29 @@ class SSD(object):
         self.net    = self.net.eval()
         print('{} model, anchors, and classes loaded.'.format(self.model_path))
 
+        #-------------------------------#
+        #   载入facenet模型与权值
+        #-------------------------------#
+        self.facenet    = Facenet(backbone=self.facenet_backbone, mode="predict").eval()
+        self.facenet    = nn.DataParallel(self.facenet)
+        self.facenet    = self.facenet.cuda()
+
+
         if self.cuda:
             self.net = torch.nn.DataParallel(self.net)
             cudnn.benchmark = True
             self.net = self.net.cuda()
 
+
+
+
+
+
     #---------------------------------------------------#
     #   检测图片
     #---------------------------------------------------#
     def detect_image(self, image, crop):
+        face_encodings = []
         #---------------------------------------------------#
         #   计算输入图片的高和宽
         #---------------------------------------------------#
@@ -169,15 +216,19 @@ class SSD(object):
             if len(results[0]) <= 0:
                 return image
 
-            top_label   = np.array(results[0][:, 4], dtype = 'int32')
-            top_conf    = results[0][:, 5]
-            top_boxes   = results[0][:, :4]
+            top_label   = np.array(results[0][:, 4], dtype = 'int32')   #用类别对应的序号标记类别
+            top_conf    = results[0][:, 5]  #result 中的第五个位置的数字
+            top_boxes   = results[0][:, :4] #result 中的0-4位置的数字
         #---------------------------------------------------------#
         #   设置字体与边框厚度
         #---------------------------------------------------------#
         font = ImageFont.truetype(font='model_data/simhei.ttf', size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32'))
         thickness = max((np.shape(image)[0] + np.shape(image)[1]) // self.input_shape[0], 1)
         
+
+        #encode_face_dataset('source_img/')
+
+
         #---------------------------------------------------------#
         #   是否进行目标的裁剪
         #---------------------------------------------------------#
@@ -193,10 +244,8 @@ class SSD(object):
                 if not os.path.exists(dir_save_path):
                     os.makedirs(dir_save_path)
                 crop_image = image.crop([left, top, right, bottom])
-                #crop_image.save(os.path.join(dir_save_path, "crop_" + str(i) + ".png"), quality=95, subsampling=0)
-                #print("save crop_" + str(i) + ".png to " + dir_save_path)
-
-
+                crop_image.save(os.path.join(dir_save_path, "crop_" + str(i) + ".png"), quality=95, subsampling=0)
+                print("save crop_" + str(i) + ".png to " + dir_save_path)
 
                 #---------------------------------------------------------#
                 #   对截取的人脸进行编码
@@ -214,11 +263,11 @@ class SSD(object):
                     face_encodings.append(face_encoding)
 
 
+          
         #---------------------------------------------------------#
         #   图像绘制
         #---------------------------------------------------------#
         for i, c in list(enumerate(top_label)):
-            print(len(top_label))
             predicted_class = self.class_names[int(c)]
             box             = top_boxes[i]
             score           = top_conf[i]
