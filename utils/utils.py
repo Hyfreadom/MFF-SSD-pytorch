@@ -2,6 +2,8 @@ import numpy as np
 import cv2
 from PIL import Image
 
+from nets.facenet import Facenet
+
 #---------------------------------------------------------#
 #   将图像转换成RGB图像，防止灰度图在预测时报错。
 #   代码仅仅支持RGB图像的预测，所有其它类型的图像都会转化成RGB
@@ -46,6 +48,21 @@ def get_classes(classes_path):
 def preprocess_input(inputs):
     MEANS = (104, 117, 123)
     return inputs - MEANS
+#---------------------------------#
+#   计算人脸距离
+#---------------------------------# 
+def face_distance(face_encodings, face_to_compare):
+    if len(face_encodings) == 0:
+        return np.empty((0))
+    # (n, )
+    return np.linalg.norm(face_encodings - face_to_compare, axis=1)
+#---------------------------------#
+#   比较人脸
+#---------------------------------#
+def compare_faces(known_face_encodings, face_encoding_to_check, tolerance):
+    print(face_encoding_to_check)
+    dis = face_distance(known_face_encodings, face_encoding_to_check) 
+    return list(dis <= tolerance), dis
 
 #---------------------------------------------------#
 #   获得学习率
