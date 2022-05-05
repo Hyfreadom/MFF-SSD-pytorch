@@ -69,9 +69,7 @@ class SSD(object):
             return "Unrecognized attribute name '" + n + "'"
 
 
-    #---------------------------------------------------#
     #   初始化ssd和facenet
-    #---------------------------------------------------#
     def __init__(self, encoding =0,**kwargs):
         self.__dict__.update(self._defaults)
         for name, value in kwargs.items():
@@ -93,9 +91,7 @@ class SSD(object):
         self.colors = list(map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)), self.colors))
         self.bbox_util = BBoxUtility(self.num_classes)
 
-        #---------------------------------------------------#
-        #   加载source人脸特征
-        #---------------------------------------------------#       
+        #   加载source人脸特征 
         try:
             self.known_face_encodings = np.load("model_data/{backbone}_face_encoding.npy".format(backbone=self.facenet_backbone))
             self.known_face_names     = np.load("model_data/{backbone}_names.npy".format(backbone=self.facenet_backbone))
