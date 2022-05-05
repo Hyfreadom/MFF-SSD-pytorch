@@ -99,6 +99,7 @@ class SSD(object):
         try:
             self.known_face_encodings = np.load("model_data/{backbone}_face_encoding.npy".format(backbone=self.facenet_backbone))
             self.known_face_names     = np.load("model_data/{backbone}_names.npy".format(backbone=self.facenet_backbone))
+            print('facenet loaded')
         except:
             if not encoding:
                 print("载入已有人脸特征失败，请检查model_data下面是否生成了相关的人脸特征文件。")
