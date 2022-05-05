@@ -38,7 +38,7 @@ class SSD(object):
         #----------------------------------------------------------------------#
         #   SSD网络是否进行不失真的resize
         #----------------------------------------------------------------------#
-        "letterbox_image"   : False,
+        "letterbox_image"   : True,
 
 
 
@@ -53,13 +53,7 @@ class SSD(object):
         #----------------------------------------------------------------------#
         #   facenet所使用的人脸距离门限
         #----------------------------------------------------------------------#
-        "facenet_threhold"      : 0.5,
-        #----------------------------------------------------------------------#
-        #   Facenet网络是否进行不失真的resize
-        #----------------------------------------------------------------------#
-        "letterbox_image"       : True,
-
-
+        "facenet_threhold"      : 0.9,
         #-------------------------------#
         #   是否使用Cuda
         #   没有GPU可以设置成False
@@ -147,64 +141,40 @@ class SSD(object):
         print('Finished!')
 
 
-
-
-
-
-
-    #---------------------------------------------------#
     #   已知目标编码
-    #---------------------------------------------------#
     def encode_image(self,image,names):
-        #---------------------------------------------------#
-        #   计算输入图片的高和宽
-        #---------------------------------------------------#
+        #获取图片的高和宽
         image_shape = np.array(np.shape(image)[0:2])
-        #---------------------------------------------------------#
         #   在这里将图像转换成RGB图像，防止灰度图在预测时报错。
-        #   代码仅仅支持RGB图像的预测，所有其它类型的图像都会转化成RGB
-        #---------------------------------------------------------#
         image       = cvtColor(image)
-        #---------------------------------------------------------#
         #   给图像增加灰条，实现不失真的resize
-        #   也可以直接resize进行识别
-        #---------------------------------------------------------#
-        image_data  = resize_image(image, (self.input_shape[1], self.input_shape[0]), self.letterbox_image)
-        #---------------------------------------------------------#
+        image_data  = resize_image(image, size= (self.input_shape[1], self.input_shape[0]), letterbox_image=True)
         #   添加上batch_size维度，图片预处理，归一化。
-        #---------------------------------------------------------#
         image_data = np.expand_dims(np.transpose(preprocess_input(np.array(image_data, dtype='float32')), (2, 0, 1)), 0)
 
         with torch.no_grad():
-            #---------------------------------------------------#
             #   转化成torch的形式
-            #---------------------------------------------------#
             images = torch.from_numpy(image_data).type(torch.FloatTensor)
             if self.cuda:
                 images = images.cuda()
-            #---------------------------------------------------------#
             #   将图像输入网络当中进行预测！
-            #---------------------------------------------------------#
             outputs     = self.net(images)
-            #-----------------------------------------------------------#
             #   将预测结果进行解码
-            #-----------------------------------------------------------#
             results     = self.bbox_util.decode_box(outputs, self.anchors, image_shape, self.input_shape, self.letterbox_image, 
                                                     nms_iou = self.nms_iou, confidence = self.confidence)
-            #--------------------------------------#
             #   如果没有检测到物体，则返回原图
-            #--------------------------------------#
             if len(results[0]) <= 0:
                 return image
-
             top_label   = np.array(results[0][:, 4], dtype = 'int32')   #用类别对应的序号标记类别
             top_conf    = results[0][:, 5]  #result 中的第五个位置的数字
             top_boxes   = results[0][:, :4] #result 中的0-4位置的数字
-
-
-        #---------------------------------------------------------#
+        if (len(top_label)==0):
+            print('未检测到人脸')
+            return
+        elif (len(top_label)>1):
+            print('检测到多张人脸,请重新输入')
+            return
         #   进行目标的裁剪
-        #---------------------------------------------------------#
         for i, c in list(enumerate(top_boxes)):
             top, left, bottom, right = top_boxes[i]
             top     = max(0, np.floor(top).astype('int32'))
@@ -216,163 +186,97 @@ class SSD(object):
             if not os.path.exists(dir_save_path):
                 os.makedirs(dir_save_path)
             crop_image = image.crop([left, top, right, bottom])
-            #---------------------------------------------------------#
-            #   对截取的人脸进行resize
-            #---------------------------------------------------------#
+            #   对人脸图片进行resize并改变通道顺序
             crop_img = np.array(letterbox_image(np.uint8(crop_image),(self.facenet_input_shape[1],self.facenet_input_shape[0])))/255
             crop_img = np.expand_dims(crop_img.transpose(2, 0, 1),0)
-
-
-            #-----------------------------------------------#
             #   利用facenet_model对resize后的参照人脸进行编码
-            #   计算长度为128特征向量
-            #-----------------------------------------------#
-            names = []
-            face_encodings = []
             with torch.no_grad():
                 crop_img = torch.from_numpy(crop_img).type(torch.FloatTensor)
                 if self.cuda:
                     crop_img = crop_img.cuda()                
-
                 face_encoding = self.facenet(crop_img)[0].cpu().numpy()
-        return face_encoding
-        np.save("model_data/{backbone}_face_encoding.npy".format(backbone=self.facenet_backbone),face_encodings)
-        np.save("model_data/{backbone}_names.npy".format(backbone=self.facenet_backbone),names)
+        return  face_encoding
 
 
-    #---------------------------------------------------#
     #   未知目标检测
-    #---------------------------------------------------#
-    def detect_image(self, image, crop):
+    def detect_image(self, image):
         face_encodings = []
-        #---------------------------------------------------#
         #   计算输入图片的高和宽
-        #---------------------------------------------------#
         image_shape = np.array(np.shape(image)[0:2])
-        #---------------------------------------------------------#
         #   在这里将图像转换成RGB图像，防止灰度图在预测时报错。
-        #   代码仅仅支持RGB图像的预测，所有其它类型的图像都会转化成RGB
-        #---------------------------------------------------------#
         image       = cvtColor(image)
-        #---------------------------------------------------------#
         #   给图像增加灰条，实现不失真的resize
-        #   也可以直接resize进行识别
-        #---------------------------------------------------------#
-        image_data  = resize_image(image, (self.input_shape[1], self.input_shape[0]), self.letterbox_image)
-        #---------------------------------------------------------#
+        image_data  = resize_image(image, (self.input_shape[1], self.input_shape[0]),letterbox_image=True)
         #   添加上batch_size维度，图片预处理，归一化。
-        #---------------------------------------------------------#
         image_data = np.expand_dims(np.transpose(preprocess_input(np.array(image_data, dtype='float32')), (2, 0, 1)), 0)
-
         with torch.no_grad():
-            #---------------------------------------------------#
             #   转化成torch的形式
-            #---------------------------------------------------#
             images = torch.from_numpy(image_data).type(torch.FloatTensor)
             if self.cuda:
                 images = images.cuda()
-            #---------------------------------------------------------#
-            #   将图像输入网络当中进行预测！
-            #---------------------------------------------------------#
             outputs     = self.net(images)
-            #-----------------------------------------------------------#
             #   将预测结果进行解码
-            #-----------------------------------------------------------#
             results     = self.bbox_util.decode_box(outputs, self.anchors, image_shape, self.input_shape, self.letterbox_image, 
                                                     nms_iou = self.nms_iou, confidence = self.confidence)
-            #--------------------------------------#
             #   如果没有检测到物体，则返回原图
-            #--------------------------------------#
             if len(results[0]) <= 0:
                 return image
-
-
-            top_label   = np.array(results[0][:, 4], dtype = 'int32')   #用类别对应的序号标记类别
-            top_conf    = results[0][:, 5]  #result 中的第五个位置的数字
-            top_boxes   = results[0][:, :4] #result 中的0-4位置的数字
-        #---------------------------------------------------------#
+            #result中坐标为5(第6个)的数字,前四个是坐标,第五个是类别,第六个是置信度
+            top_label   = np.array(results[0][:, 4], dtype = 'int32')   #坐标为4的数字(类别编号)
+            top_conf    = results[0][:, 5]      #坐标为5的数字(置信度)
+            top_boxes   = results[0][:, :4]     #坐标为0-3的数字,(坐标)
         #   设置字体与边框厚度
-        #---------------------------------------------------------#
         font = ImageFont.truetype(font='model_data/simhei.ttf', size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32'))
         thickness = max((np.shape(image)[0] + np.shape(image)[1]) // self.input_shape[0], 1)
         
-
-        #encode_face_dataset('source_img/')
-
-
-        #---------------------------------------------------------#
-        #   是否进行目标的裁剪
-        #---------------------------------------------------------#
-        if crop:
-            for i, c in list(enumerate(top_boxes)):
-                top, left, bottom, right = top_boxes[i]
-                top     = max(0, np.floor(top).astype('int32'))
-                left    = max(0, np.floor(left).astype('int32'))
-                bottom  = min(image.size[1], np.floor(bottom).astype('int32'))
-                right   = min(image.size[0], np.floor(right).astype('int32'))
-                
-                dir_save_path = "img_crop"
-                if not os.path.exists(dir_save_path):
-                    os.makedirs(dir_save_path)
-                crop_image = image.crop([left, top, right, bottom])
-                '''
-                crop_image.save(os.path.join(dir_save_path, "crop_" + str(i) + ".png"), quality=95, subsampling=0)
-                print("save crop_" + str(i) + ".png to " + dir_save_path)'''
-
-                #---------------------------------------------------------#
-                #   对截取的人脸进行编码
-                #---------------------------------------------------------#
-                crop_img = np.array(letterbox_image(np.uint8(crop_image),(self.facenet_input_shape[1],self.facenet_input_shape[0])))/255
-                crop_img = np.expand_dims(crop_img.transpose(2, 0, 1),0)
-                with torch.no_grad():
-                    crop_img = torch.from_numpy(crop_img).type(torch.FloatTensor)
-                    if self.cuda:
-                        crop_img = crop_img.cuda()                
-                #-----------------------------------------------#
-                #   利用facenet_model计算长度为128特征向量
-                #-----------------------------------------------#
-                    face_encoding = self.facenet(crop_img)[0].cpu().numpy()
-                    face_encodings.append(face_encoding)
+        #  裁剪出人脸
+        for i, c in list(enumerate(top_boxes)):
+            #人脸坐标
+            top, left, bottom, right = top_boxes[i]
+            top     = max(0, np.floor(top).astype('int32'))
+            left    = max(0, np.floor(left).astype('int32'))
+            bottom  = min(image.size[1], np.floor(bottom).astype('int32'))    
+            right   = min(image.size[0], np.floor(right).astype('int32'))
+            # 剪裁图像
+            dir_save_path = "img_crop"
+            if not os.path.exists(dir_save_path):
+                os.makedirs(dir_save_path)
+            crop_image = image.crop([left, top, right, bottom])
+            #展示剪裁之后的图片
+            #crop_image.show()
+            #保存剪裁之后的图片
+            #crop_image.save(os.path.join(dir_save_path, "crop_" + str(i) + ".png"), quality=95, subsampling=0)
+            #print("save crop_" + str(i) + ".png to " + dir_save_path)
+            #   对人脸图片进行resize并改变通道顺序
+            crop_img = np.array(letterbox_image(np.uint8(crop_image),(self.facenet_input_shape[1],self.facenet_input_shape[0])))/255
+            crop_img = np.expand_dims(crop_img.transpose(2, 0, 1),0)
+            with torch.no_grad():
+                crop_img = torch.from_numpy(crop_img).type(torch.FloatTensor)
+                if self.cuda:
+                    crop_img = crop_img.cuda()                
+            #   计算长度为128特征向量
+                face_encoding = self.facenet(crop_img)[0].cpu().numpy()
+                #print(face_encoding)
+                #最终face_encodings为检测图片中检测到的所有人脸的编码
+                face_encodings.append(face_encoding)
         
-        #-----------------------------------------------#
-        #   人脸编码结束,开始进行特征比对
-        #-----------------------------------------------#
         face_names = []
         for face_encoding in face_encodings:
-            #-----------------------------------------------------#
-            #   取出一张脸并与数据库中所有的人脸进行对比，计算得分
-            #-----------------------------------------------------#       
+            #   取出一张脸并与数据库中所有的人脸进行对比，计算得分  
             matches, face_distances = compare_faces(self.known_face_encodings, face_encoding, tolerance = self.facenet_threhold)
             print(matches)
             print(face_distances)
             name = "Unknown"
-            #-----------------------------------------------------#
-            #   取出这个最近人脸的评分
-            #   取出当前输入进来的人脸，最接近的已知人脸的序号
-            #-----------------------------------------------------#
+            #   取出这个最近人脸的评分 取出当前输入进来的人脸，最接近的已知人脸的序号
             best_match_index = np.argmin(face_distances)
             if matches[best_match_index]: 
                 name = self.known_face_names[best_match_index]
             face_names.append(name)
-        print(face_names)
 
-
-        #-----------------------------------------------#
-        #   人脸特征比对-结束
-        #-----------------------------------------------#
-
-
-
-
-
-
-
-
-        #---------------------------------------------------------#
         #   图像绘制
-        #---------------------------------------------------------#
         for i, c in list(enumerate(top_label)):
-            predicted_class = face_names[c]
+            predicted_class = face_names[i]
+            #print(predicted_class)
             #predicted_class = self.class_names[int(c)]
             box             = top_boxes[i]
             score           = top_conf[i]
@@ -415,7 +319,7 @@ class SSD(object):
         #   给图像增加灰条，实现不失真的resize
         #   也可以直接resize进行识别
         #---------------------------------------------------------#
-        image_data  = resize_image(image, (self.input_shape[1], self.input_shape[0]), self.letterbox_image)
+        image_data  = resize_image(image, (self.input_shape[1], self.input_shape[0]),letterbox_image=True)
         #---------------------------------------------------------#
         #   添加上batch_size维度，图片预处理，归一化。
         #---------------------------------------------------------#
@@ -470,7 +374,7 @@ class SSD(object):
         #   给图像增加灰条，实现不失真的resize
         #   也可以直接resize进行识别
         #---------------------------------------------------------#
-        image_data  = resize_image(image, (self.input_shape[1], self.input_shape[0]), self.letterbox_image)
+        image_data  = resize_image(image, (self.input_shape[1], self.input_shape[0]), letterbox_image= True)
         #---------------------------------------------------------#
         #   添加上batch_size维度，图片预处理，归一化。
         #---------------------------------------------------------#
