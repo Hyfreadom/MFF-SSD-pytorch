@@ -26,6 +26,7 @@ if __name__ == "__main__":
     #   crop仅在mode='predict'时有效
     #-------------------------------------------------------------------------#
     crop            = False
+    detect_face     = True
     #----------------------------------------------------------------------------------------------------------#
     #   video_path用于指定视频的路径，当video_path=0时表示检测摄像头
     #   想要检测视频，则设置如video_path = "xxx.mp4"即可，代表读取出根目录下的xxx.mp4文件。
@@ -69,7 +70,7 @@ if __name__ == "__main__":
                 print('Open Error! Try again!')
                 continue
             else:
-                r_image = ssd.detect_image(image)
+                r_image = ssd.detect_image(image,detect_face)
                 r_image.show()
 
     elif mode == "video":
@@ -95,7 +96,7 @@ if __name__ == "__main__":
             # 转变成Image
             frame = Image.fromarray(np.uint8(frame))
             # 进行检测
-            frame = np.array(ssd.detect_image(frame))
+            frame = np.array(ssd.detect_image(frame,detect_face))
             # RGBtoBGR满足opencv显示格式
             frame = cv2.cvtColor(frame,cv2.COLOR_RGB2BGR)
             
@@ -133,7 +134,7 @@ if __name__ == "__main__":
             if img_name.lower().endswith(('.bmp', '.dib', '.png', '.jpg', '.jpeg', '.pbm', '.pgm', '.ppm', '.tif', '.tiff')):
                 image_path  = os.path.join(dir_origin_path, img_name)
                 image       = Image.open(image_path)
-                r_image     = ssd.detect_image(image)
+                r_image     = ssd.detect_image(image,detect_face)
                 if not os.path.exists(dir_save_path):
                     os.makedirs(dir_save_path)
                 r_image.save(os.path.join(dir_save_path, img_name.replace(".jpg", ".png")), quality=95, subsampling=0)
