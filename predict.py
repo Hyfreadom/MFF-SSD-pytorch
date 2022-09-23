@@ -49,25 +49,24 @@ if __name__ == "__main__":
     dir_origin_path = "img/"
     dir_save_path   = "img_out/"
     if mode == "predict":
-        while True:
-            img_namedir = []
-            img_name= os.listdir('img/')
-            for item in img_name:
-                img_namedir.append("img/" + item)
-            print(img_namedir)
-            for image in img_namedir:
-                #img = input('Input image filename:')
-                img = image
+        img_namedir = []
+        img_name= os.listdir('img/')
+        for item in img_name:
+            img_namedir.append("img/" + item)
+        print(img_namedir)
+        for image in img_namedir:
+            #img = input('Input image filename:')
+            img = image
             
-                try:
-                    image = Image.open(img)
-                except:
-                    print('Open Error! Try again!')
-                    continue
-                else:
-                    r_image = ssd.detect_image(image,detect_face)
-                    r_image.show()
-                    r_image.save("img.jpg")
+            try:
+                image = Image.open(img)
+            except:
+                print('Open Error! Try again!')
+                continue
+            else:
+                r_image = ssd.detect_image(image,detect_face)
+                r_image.show()
+                r_image.save("img.jpg")
 
     elif mode == "video":
         capture=cv2.VideoCapture(video_path)
