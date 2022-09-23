@@ -4,7 +4,7 @@ from PIL import Image
 from ssd import SSD
 
 '''
-在更换facenet网络后一定要重新进行人脸编码，运行encoding.py。
+人脸编码网络
 '''
 ssd_face = SSD()
 pic_names = os.listdir("source_img")
