@@ -57,7 +57,7 @@ if __name__ == "__main__":
         for image in img_namedir:
             #img = input('Input image filename:')
             img = image
-            
+        
             try:
                 image = Image.open(img)
             except:
