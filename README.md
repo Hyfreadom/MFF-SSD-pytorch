@@ -9,7 +9,7 @@
 MFF-SSD网络   https://1drv.ms/u/s!AmGOKGe8n14LhvoUsdYae7lFm0oIUQ?e=owXIcZ
 retina-face网络    https://1drv.ms/u/s!AmGOKGe8n14Lhv0vSxdjKOlvMcKHdA?e=esXolG
 
-感谢bubbliiiin
+感谢bubbliiiing
 ---
 https://github.com/bubbliiiing/ssd-pytorch
 bubbliiiing的代码和其在bilibili上面的详细指导教程! 清晰易懂! 
