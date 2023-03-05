@@ -1,4 +1,4 @@
-# ssd-pytorch
+# MFFSSD-retinaface-pytorch
 
 一个利用了多尺度特征融合的SSD网络,用于人脸识别与检测,使用pytorch实现
 前端为融合了UNET的SSD网络,用于目标检测
